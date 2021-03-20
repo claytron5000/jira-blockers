@@ -8,26 +8,57 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/xlab/treeprint"
 )
 
 func main() {
 
+	issueID := flag.String("issue", "", "The issue id against which we're querying")
 	userEmail := flag.String("user", "", "Your email to access Jira")
 	userToken := flag.String("token", "", "Your Jira token")
-	issueID := flag.String("issue", "", "The issue id against which we're querying")
 	flag.Parse()
 	// fmt.Println(*issueID)
 	// fmt.Println(*userEmail)
 	// fmt.Println(*userToken)
+	tree := treeprint.New()
 
-	queryString := generateQueryString(*issueID)
+	top := tree.AddBranch(*issueID)
+
+	// fmt.Println(tree.String())
+	recurseTreeFetching(top, *issueID, *userEmail, *userToken)
+
+	fmt.Println(tree.String())
+}
+
+func generateQueryString(i string) string {
+
+	templatePreface := " SYM AND issueBlocks "
+	encodedPreface := url.PathEscape(templatePreface)
+	// puking emoji face
+	prefacePreface := "project%20="
+
+	// fmt.Println(i)
+
+	return prefacePreface + encodedPreface + "=" + i
+}
+
+type Issue struct {
+	Key string
+}
+type JiraResponse struct {
+	Issues []Issue
+}
+
+func fetchBlockingIssues(issueID string, userEmail string, userToken string) []Issue {
+	queryString := generateQueryString(issueID)
 	urlString := "https://bsn.atlassian.net/rest/api/latest/search?jql=" + queryString
 	// fmt.Println(urlString)
 
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", urlString, nil)
-	req.SetBasicAuth(DerefString(userEmail), DerefString(userToken))
+	req.SetBasicAuth(userEmail, userToken)
 	req.Header.Add("Content-Type", "application/json")
 	if err != nil {
 		log.Fatal(err)
@@ -44,39 +75,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(s)
 	var response JiraResponse
 	json.Unmarshal([]byte(s), &response)
-	for i := 0; i < len(response.Issues); i++ {
-		fmt.Println(response.Issues[i].Key)
+	return response.Issues
+}
+
+func recurseTreeFetching(tree treeprint.Tree, issueID string, userEmail string, userToken string) bool {
+	issues := fetchBlockingIssues(issueID, userEmail, userToken)
+	if len(issues) == 0 {
+		return true
 	}
-
-}
-
-func DerefString(s *string) string {
-	if s != nil {
-		return *s
+	for i := 0; i < len(issues); i++ {
+		currIssueID := issues[i].Key
+		currBranch := tree.AddBranch(currIssueID)
+		recurseTreeFetching(currBranch, currIssueID, userEmail, userToken)
 	}
-	fmt.Println("nil argument")
-
-	return ""
-}
-
-func generateQueryString(i string) string {
-
-	templatePreface := " SYM AND issueBlocks "
-	encodedPreface := url.PathEscape(templatePreface)
-	// puking emoji face
-	prefacePreface := "project%20="
-
-	fmt.Println(i)
-
-	return prefacePreface + encodedPreface + "=" + i
-}
-
-type Issue struct {
-	Key string
-}
-type JiraResponse struct {
-	Issues []Issue
+	return false
 }
