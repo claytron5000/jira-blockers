@@ -14,9 +14,7 @@ func main() {
 	userToken := flag.String("token", "", "Your Jira token")
 	depth := flag.Int("depth", 3, "How deep do we build the tree")
 	flag.Parse()
-	// fmt.Println(*issueID)
-	// fmt.Println(*userEmail)
-	// fmt.Println(*userToken)
+
 	fetcher := Fetcher{
 		userEmail: *userEmail,
 		userToken: *userToken,
@@ -26,7 +24,7 @@ func main() {
 
 	var ch = make(chan int)
 
-	go recurseTreeFetching(fetcher, tree, *issueID, ch, *depth)
+	go RecurseTreeFetching(fetcher, tree, *issueID, ch, *depth)
 	childs := 1
 	for childs > 0 {
 		childs += <-ch
@@ -36,7 +34,7 @@ func main() {
 
 }
 
-func recurseTreeFetching(fetcher IFetcher, tree treeprint.Tree, issueID string, ch chan int, depth int) {
+func RecurseTreeFetching(fetcher IFetcher, tree treeprint.Tree, issueID string, ch chan int, depth int) {
 	issues := fetcher.fetchIssues(issueID)
 	if len(issues) == 0 {
 		// delete this child
@@ -55,7 +53,7 @@ func recurseTreeFetching(fetcher IFetcher, tree treeprint.Tree, issueID string, 
 	for i := 0; i < len(issues); i++ {
 		currIssueID := issues[i].Key
 		currBranch := tree.AddBranch(currIssueID)
-		go recurseTreeFetching(fetcher, currBranch, currIssueID, ch, depth)
+		go RecurseTreeFetching(fetcher, currBranch, currIssueID, ch, depth)
 	}
 }
 
