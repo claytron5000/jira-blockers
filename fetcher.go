@@ -8,6 +8,10 @@ import (
 	"net/url"
 )
 
+type IFetcher interface {
+	fetchIssues(issueID string) []Issue
+}
+
 type Fetcher struct {
 	userEmail string
 	userToken string
