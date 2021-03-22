@@ -51,14 +51,23 @@ func RecurseTreeFetching(fetcher IFetcher, tree treeprint.Tree, issueID string, 
 	ch <- len(issues) - 1
 
 	for i := 0; i < len(issues); i++ {
-		currIssueID := issues[i].Key
-		currBranch := tree.AddBranch(currIssueID)
-		go RecurseTreeFetching(fetcher, currBranch, currIssueID, ch, depth)
+		currIssue := issues[i]
+		currBranch := tree.AddMetaBranch(currIssue.Key, currIssue.Fields.Status.Name)
+		go RecurseTreeFetching(fetcher, currBranch, currIssue.Key, ch, depth)
 	}
 }
 
 type Issue struct {
-	Key string
+	Key    string
+	Fields Fields
+}
+
+//fields.status.name
+type Fields struct {
+	Status Status
+}
+type Status struct {
+	Name string
 }
 type JiraResponse struct {
 	Issues []Issue
